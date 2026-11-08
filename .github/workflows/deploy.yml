@@ -4,6 +4,7 @@ on:
     branches: [main]
     paths:
       - 'index.html'
+      - 'about.html'
       - 'assets/**'
       - 'data/translations.json'
       - '.github/workflows/deploy.yml'
@@ -26,7 +27,7 @@ jobs:
       - name: Assemble static site
         run: |
           mkdir -p site
-          cp index.html site/
+          cp index.html about.html site/
           cp -r assets data site/
           touch site/.nojekyll
       - uses: actions/configure-pages@v5
