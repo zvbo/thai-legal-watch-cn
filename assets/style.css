@@ -29,3 +29,94 @@ footer a{color:#356c63}footer .footer-attribution{display:flex;justify-content:s
   aside input, aside select { font-size: 16px; font-weight: 400; }
   .dates { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+/* Browse the Gazette */
+.section-nav {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 4px;
+  padding: 5px;
+  background: #eaf1ed;
+  border: 1px solid #dbe6e0;
+  border-radius: 12px;
+}
+.section-nav a, .discovery-options a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 41px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  color: #28554f;
+  font-size: 14px;
+  font-weight: 650;
+  text-align: center;
+}
+.section-nav a:hover, .discovery-options a:hover {
+  background: #f5faf7;
+  text-decoration: none;
+}
+.section-nav a[aria-current="page"], .discovery-options a[aria-current="page"] {
+  background: #22574d;
+  color: #fff;
+}
+.section-nav + .notice { margin-top: 18px; }
+.discovery-panel {
+  padding: 24px 28px;
+  margin-bottom: 20px;
+  border: 1px solid #dbe6e0;
+  border-radius: 12px;
+  background: #fff;
+}
+.discovery-panel h2 { margin: 0; font-size: 24px; }
+.discovery-intro { margin: 10px 0 15px; color: #435e60; line-height: 1.65; }
+.discovery-note { margin: 12px 0; color: #596f70; font-size: 13px; line-height: 1.6; }
+.discovery-options { display: flex; flex-wrap: wrap; justify-content: flex-start; gap: 7px; }
+.discovery-options a {
+  border: 1px solid #dbe6e0;
+  font-size: 13px;
+  background: #f4f8f6;
+}
+.discovery-select { display: block; max-width: 340px; margin: 14px 0; font-size: 13px; }
+.discovery-select select { font-size: 14px; }
+.insight-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.insight-grid + .discovery-options { margin-top: 16px; }
+.insight-card {
+  padding: 16px 20px;
+  border: 1px solid #e1eae4;
+  border-radius: 10px;
+  background: #f9fbfa;
+}
+.insight-card h3 { margin: 0 0 8px; font-size: 16px; }
+.rank-list, .month-bars { margin: 0; padding: 0; list-style: none; }
+.rank-list li, .month-bars li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 12px;
+  padding: 8px 0;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.rank-list li + li { border-top: 1px solid #e6ede8; }
+.month-bars li { grid-template-columns: 4.5rem minmax(0, 1fr) 3.5rem; }
+.month-bars strong { text-align: right; }
+.month-track {
+  align-self: center;
+  height: 9px;
+  border-radius: 6px;
+  background: #e3ede8;
+}
+.month-bar { display: block; height: 100%; border-radius: inherit; background: #428376; }
+.lens-chip { background: #e5f1ec; color: #27594d; }
+@media (max-width: 550px) {
+  .hero h1 { text-wrap: balance; }
+  .section-nav { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .section-nav a { padding-inline: 4px; font-size: 13px; }
+  .discovery-panel { padding: 17px; }
+  .discovery-panel h2 { font-size: 21px; }
+  .discovery-select select { font-size: 16px; }
+  .insight-grid { grid-template-columns: minmax(0, 1fr); }
+  .insight-card { padding: 14px; }
+}
