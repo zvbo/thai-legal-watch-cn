@@ -11,6 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      pull-requests: read
     outputs:
       automatic: ${{ steps.policy.outputs.automatic }}
     steps:
@@ -23,7 +24,9 @@ jobs:
       - id: policy
         name: Validate pull request
         env:
+          GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
           PR_HEAD: ${{ github.event.pull_request.head.sha }}
           TRANSLATION_BRANCH: ${{ startsWith(github.event.pull_request.head.ref, 'translations/') }}
           AUTOMATIC: ${{ startsWith(github.event.pull_request.head.ref, 'translations/') && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.user.login == github.repository_owner }}
@@ -32,10 +35,31 @@ jobs:
           test "$(git rev-parse FETCH_HEAD)" = "$PR_HEAD"
           fork_point=$(git merge-base HEAD "$PR_HEAD")
           path=data/translations.json
+          files=$(git diff --name-only --no-renames "$fork_point" "$PR_HEAD")
           if [ "$TRANSLATION_BRANCH" = true ]; then
             test "$AUTOMATIC" = true
             test "$fork_point" = "$(git rev-parse HEAD)"
-            test "$(git diff --name-only --no-renames "$fork_point" "$PR_HEAD")" = "$path"
+            test "$files" = "$path"
+          elif [ "$files" != "$path" ]; then
+            reviews=$(gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/reviews")
+            reviewers=$(jq -r --arg head "$PR_HEAD" --arg author "$PR_AUTHOR" '
+              add | map(select(.state == "APPROVED" or .state == "CHANGES_REQUESTED" or .state == "DISMISSED"))
+              | group_by(.user.login)[] | last
+              | select(.state == "APPROVED" and .commit_id == $head and .user.login != $author)
+              | .user.login
+            ' <<< "$reviews")
+            approved=false
+            while IFS= read -r reviewer; do
+              if [ -z "$reviewer" ]; then continue; fi
+              permission=$(gh api "repos/$GITHUB_REPOSITORY/collaborators/$reviewer/permission" --jq .permission)
+              case "$permission" in
+                admin|maintain|write) approved=true; break ;;
+              esac
+            done <<< "$reviewers"
+            if [ "$approved" != true ]; then
+              echo "::error::Code changes need approval from another collaborator. Re-run the policy after approval."
+              exit 1
+            fi
           fi
           if ! git diff --quiet "$fork_point" "$PR_HEAD" -- "$path"; then
             test "$(git ls-tree --format='%(objectmode)' "$PR_HEAD" -- "$path")" = 100644
