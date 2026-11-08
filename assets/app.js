@@ -113,7 +113,7 @@ let section = 'gazette';
 let sectionParams = new URLSearchParams();
 let loaded = false;
 let provinceCounts = new Map();
-const filterIds = ['queryInput', 'topicSelect', 'provinceSelect', 'fromDate', 'toDate', 'translationFilter'];
+const sectionFilterIds = ['queryInput', 'topicSelect', 'provinceSelect', 'fromDate', 'toDate'];
 
 function el(tag, className, text) {
   const node = document.createElement(tag);
@@ -272,6 +272,7 @@ function render() {
 
 function reset() {
   pageSize = INITIAL_PAGE_SIZE;
+  $('translatedOnly').checked = $('translationFilter').value === 'translated';
   if (loaded) render();
 }
 
@@ -350,14 +351,14 @@ function internalLink(text, href, className) {
   return anchor;
 }
 
-function clearFilters() {
-  for (const id of filterIds) $(id).value = id === 'translationFilter' ? 'all' : '';
+function clearSectionFilters() {
+  for (const id of sectionFilterIds) $(id).value = '';
 }
 
 function readSection() {
   const [key, query] = location.hash.slice(1).split('?');
   const next = Object.hasOwn(SECTIONS, key) ? key : 'gazette';
-  if (next !== section) clearFilters();
+  if (next !== section) clearSectionFilters();
   section = next;
   sectionParams = new URLSearchParams(query);
   applySectionFilters();
@@ -455,9 +456,13 @@ function renderDiscovery() {
   else renderLens(body, info);
 }
 
-for (const id of filterIds) {
+for (const id of [...sectionFilterIds, 'translationFilter']) {
   $(id).addEventListener(id === 'queryInput' ? 'input' : 'change', reset);
 }
+$('translatedOnly').addEventListener('change', event => {
+  $('translationFilter').value = event.currentTarget.checked ? 'translated' : 'all';
+  reset();
+});
 $('provinceSelect').addEventListener('change', () => {
   if (section === 'regions') setSectionParam('province', $('provinceSelect').value);
 });
@@ -465,7 +470,8 @@ $('topicSelect').addEventListener('change', () => {
   if (section === 'gazette') setSectionParam('topic', $('topicSelect').value);
 });
 $('resetButton').addEventListener('click', () => {
-  clearFilters();
+  clearSectionFilters();
+  $('translationFilter').value = 'all';
   sectionParams = new URLSearchParams();
   history.replaceState(null, '', sectionHref(section));
   reset();

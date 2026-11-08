@@ -112,3 +112,43 @@ footer a{color:#356c63}footer .footer-attribution{display:flex;justify-content:s
 @media (max-width: 550px) {
   .footer-wechat { justify-content: space-between; margin-top: 20px; padding-top: 16px; border-top: 1px solid #d9e4dc; }
 }
+
+.translation-tools {
+  display: grid;
+  justify-items: start;
+  gap: 10px;
+  margin-top: 18px;
+}
+.translation-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 7px 12px;
+  border: 1px solid #d1e2de;
+  border-radius: 8px;
+  background: #f4f8f6;
+  color: #28554f;
+  font-size: 14px;
+  font-weight: 650;
+  cursor: pointer;
+}
+.translation-toggle:has(input:checked) {
+  border-color: #22574d;
+  background: #e5f1ec;
+}
+.translation-toggle input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  padding: 0;
+  accent-color: #22574d;
+}
+.translation-guide {
+  color: #596f70;
+  font-size: 13px;
+  line-height: 1.55;
+}
+.translation-guide summary { cursor: pointer; }
+.translation-guide p { margin: 7px 0 0; }
+.translation-tools + .result-status { padding-top: 13px; }
