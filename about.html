@@ -3,7 +3,8 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="description" content="泰国法律观察中文版：项目说明、数据来源、授权及非官方译文声明"><title>关于与授权｜泰国法律观察中文版</title>
-<link rel="stylesheet" href="./assets/style.css?v=wechat">
+<link rel="stylesheet" href="./assets/style.css?v=analytics">
+<script type="module" src="./assets/analytics.js?v=1"></script>
 </head>
 <body>
 <header><div class="wrap head"><div><a href="./index.html" class="brand">泰国法律观察</a><small>THAI LEGAL WATCH · CN</small></div><nav><a href="./index.html">返回公报列表</a><a href="https://github.com/zvbo/thai-legal-watch-cn" target="_blank" rel="noopener noreferrer">GitHub 源代码 ↗</a></nav></div></header>
@@ -28,9 +29,18 @@
 <p><strong>免责声明：</strong>本站不是泰国政府网站，也不是 Open Law Data Thailand 官方中文版。OCR、机器分类、数据更新及中文翻译均可能有遗漏或错误。本网站不构成法律意见，法律效力、适用范围与正式引用均以泰国《皇家公报》官方泰文文件为准。</p>
 </section>
 <section class="about-section"><h2>四、更新方式</h2><p>浏览器直接读取 Thai Legal Watch 公开 JSON。中文参考标题存放在本站版本化静态文件中，通过预定的增量翻译任务更新并经 GitHub Pages 发布；不运行独立法规数据库或服务器端 API。</p></section>
+<section class="about-section" id="traffic-summary"><h2>五、网站访问统计</h2>
+<p>接入 Umami 后，本站统计浏览量、栏目与筛选操作、官方公报 PDF 点击，以及搜索是否有结果。搜索原词不会发送给统计服务。PDF 点击反映本站的外链点击。</p>
+<dl class="stats" hidden>
+  <div><dt>统计当日浏览量</dt><dd data-traffic-total="pageviews_today"></dd></div>
+  <div><dt>近 30 天浏览量</dt><dd data-traffic-total="pageviews_30d"></dd></div>
+  <div><dt>近 30 天官方公报 PDF 点击量</dt><dd data-traffic-total="pdf_clicks_30d"></dd></div>
+</dl>
+<p data-traffic-status>暂无已发布的汇总数据。</p>
+</section>
 <p class="about-back"><a href="./index.html">← 返回公报中文列表</a></p>
 </main>
-<footer><div class="wrap footer-attribution"><div><strong>泰国法律观察 · 中文版</strong><p>数据来源：<a href="https://www.openlawdatathailand.org/" target="_blank" rel="noopener noreferrer">Open Law Data Thailand</a> / <a href="https://thai-legal-watch.openlawdatathailand.org/" target="_blank" rel="noopener noreferrer">Thai Legal Watch</a> · <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a></p><p>中文标题由本项目独立翻译整理（AI-GPT6.1）；非官方译本，非上游项目授权中文版。正式法律引用以泰国《皇家公报》泰文原文为准。</p></div><div class="footer-links"><a href="./about.html">关于与授权</a><a href="https://github.com/zvbo/thai-legal-watch-cn" target="_blank" rel="noopener noreferrer">源代码</a></div>
+<footer><div class="wrap footer-attribution"><div><strong>泰国法律观察 · 中文版</strong><p>数据来源：<a href="https://www.openlawdatathailand.org/" target="_blank" rel="noopener noreferrer">Open Law Data Thailand</a> / <a href="https://thai-legal-watch.openlawdatathailand.org/" target="_blank" rel="noopener noreferrer">Thai Legal Watch</a> · <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a></p><p>中文标题由本项目独立翻译整理（AI-GPT6.1）；非官方译本，非上游项目授权中文版。正式法律引用以泰国《皇家公报》泰文原文为准。</p></div><div class="footer-links"><a href="./about.html">关于与授权</a><a href="#traffic-summary">网站访问统计</a><a href="https://github.com/zvbo/thai-legal-watch-cn" target="_blank" rel="noopener noreferrer">源代码</a></div>
 <section class="footer-wechat" aria-label="LEXCELSIAM 微信公众号">
   <div><strong>LEXCELSIAM</strong><p>卓建（泰国）微信公众号</p></div>
   <a class="wechat-qr" href="./assets/lexcelsiam-wechat.jpg">

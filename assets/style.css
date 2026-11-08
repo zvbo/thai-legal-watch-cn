@@ -175,3 +175,7 @@ footer a{color:#356c63}footer .footer-attribution{display:flex;justify-content:s
   .translation-options .scope-help { position: static; }
   .scope-tip { right: auto; left: 0; }
 }
+
+#traffic-summary .stats { flex-wrap: wrap; gap: 14px 28px; margin-top: 18px; }
+#traffic-summary dt { font-size: 12px; }
+#traffic-summary dd { margin: 0; font-size: 22px; font-weight: 750; }
