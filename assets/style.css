@@ -113,42 +113,69 @@ footer a{color:#356c63}footer .footer-attribution{display:flex;justify-content:s
   .footer-wechat { justify-content: space-between; margin-top: 20px; padding-top: 16px; border-top: 1px solid #d9e4dc; }
 }
 
-.translation-tools {
-  display: grid;
-  justify-items: start;
-  gap: 10px;
-  margin-top: 18px;
-}
-.translation-toggle {
-  display: inline-flex;
+.result-counts, .translation-options {
+  display: flex;
   align-items: center;
-  gap: 8px;
-  min-height: 40px;
-  padding: 7px 12px;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.result-counts > :not(:first-child)::before { content: '·'; margin-right: 6px; }
+.translation-options { gap: 8px; margin-top: 12px; }
+.translation-options button {
+  min-height: 38px;
+  padding: 6px 11px;
   border: 1px solid #d1e2de;
   border-radius: 8px;
   background: #f4f8f6;
   color: #28554f;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 650;
   cursor: pointer;
 }
-.translation-toggle:has(input:checked) {
+.translation-options button[aria-pressed="true"] {
   border-color: #22574d;
-  background: #e5f1ec;
+  background: #22574d;
+  color: #fff;
 }
-.translation-toggle input {
-  width: 16px;
-  height: 16px;
-  margin: 0;
-  padding: 0;
-  accent-color: #22574d;
+.translation-note { margin: 9px 0 0; color: #596f70; font-size: 12px; line-height: 1.55; }
+.scope-help { position: relative; }
+.count-help {
+  padding: 2px 0;
+  border: 0;
+  background: transparent;
+  color: #28554f;
+  font: inherit;
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+  cursor: help;
 }
-.translation-guide {
-  color: #596f70;
-  font-size: 13px;
+.scope-tip {
+  position: absolute;
+  z-index: 1;
+  top: 100%;
+  right: 0;
+  width: min(240px, calc(100vw - 48px));
+  padding: 10px 12px;
+  border: 1px solid #d1e2de;
+  border-radius: 8px;
+  background: #fff;
+  color: #284b52;
+  box-shadow: 0 4px 14px #19343b24;
+  font-size: 12px;
+  font-weight: 400;
   line-height: 1.55;
+  visibility: hidden;
 }
-.translation-guide summary { cursor: pointer; }
-.translation-guide p { margin: 7px 0 0; }
-.translation-tools + .result-status { padding-top: 13px; }
+.scope-help:not([data-dismissed="true"]):is(:has(button:focus-visible), [data-open="true"]) .scope-tip {
+  visibility: visible;
+}
+@media (hover: hover) {
+  .scope-help:not([data-dismissed="true"]):hover .scope-tip { visibility: visible; }
+}
+@media (max-width: 550px) {
+  .result-counts .scope-help { position: static; }
+  .result-counts { position: relative; }
+  .translation-options { position: relative; }
+  .translation-options .scope-help { position: static; }
+  .scope-tip { right: auto; left: 0; }
+}

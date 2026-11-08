@@ -109,10 +109,12 @@ const translationLabels = {
 let docs = [];
 let topicIndex = new Map();
 let pageSize = INITIAL_PAGE_SIZE;
+let translationMode = 'all';
 let section = 'gazette';
 let sectionParams = new URLSearchParams();
 let loaded = false;
 let provinceCounts = new Map();
+const translationOptions = document.querySelectorAll('[data-translation-mode]');
 const sectionFilterIds = ['queryInput', 'topicSelect', 'provinceSelect', 'fromDate', 'toDate'];
 
 function el(tag, className, text) {
@@ -206,11 +208,11 @@ function renderItem(d) {
 
   const title = el('h3', '', d.zh || d.t);
   row.append(meta, title);
-  if (d.zh) {
+  if (d.zh && translationMode === 'all') {
     const thai = el('p', 'thai', d.t);
     thai.lang = 'th';
     row.append(thai);
-  } else {
+  } else if (!d.zh) {
     title.lang = 'th';
   }
 
@@ -228,7 +230,6 @@ function render() {
   const from = $('fromDate').value;
   const to = $('toDate').value;
   const topic = $('topicSelect').value;
-  const mode = $('translationFilter').value;
   const province = $('provinceSelect').value;
   const focus = sectionParams.get('focus');
   const groups = SECTIONS[section].groups;
@@ -245,15 +246,17 @@ function render() {
     (!to || d.d <= to) &&
     (!topic || d.topics.includes(topic)) &&
     (!province || d.regions.includes(province)) &&
-    (mode === 'all' || mode === d.status) &&
+    (translationMode === 'all' || translationMode === d.status) &&
     terms.every(term => (d.search ??= searchFields(d)).some(field => field.includes(term)))
   );
 
   const counts = { translated: 0, pending: 0, excluded: 0, review: 0 };
   for (const d of filtered) counts[d.status]++;
   $('countLabel').textContent = '匹配 ' + fmt(filtered.length) + ' / 共 ' + fmt(scoped.length) +
-    ' 条 · 已译 ' + fmt(counts.translated) + ' · 待译 ' + fmt(counts.pending) +
-    ' · 不纳入翻译 ' + fmt(counts.excluded) + ' · 待审核 ' + fmt(counts.review);
+    ' 条 · 已译 ' + fmt(counts.translated) + ' · 待译 ' + fmt(counts.pending);
+  $('excludedTotal').textContent = fmt(counts.excluded);
+  $('reviewCount').textContent = '待审核 ' + fmt(counts.review);
+  $('resultCounts').hidden = false;
   const list = document.createDocumentFragment();
   let lastDate;
   for (const d of filtered.slice(0, pageSize)) {
@@ -272,7 +275,9 @@ function render() {
 
 function reset() {
   pageSize = INITIAL_PAGE_SIZE;
-  $('translatedOnly').checked = $('translationFilter').value === 'translated';
+  for (const option of translationOptions) {
+    option.setAttribute('aria-pressed', String(option.dataset.translationMode === translationMode));
+  }
   if (loaded) render();
 }
 
@@ -456,12 +461,48 @@ function renderDiscovery() {
   else renderLens(body, info);
 }
 
-for (const id of [...sectionFilterIds, 'translationFilter']) {
+for (const id of sectionFilterIds) {
   $(id).addEventListener(id === 'queryInput' ? 'input' : 'change', reset);
 }
-$('translatedOnly').addEventListener('change', event => {
-  $('translationFilter').value = event.currentTarget.checked ? 'translated' : 'all';
-  reset();
+for (const option of translationOptions) {
+  option.addEventListener('click', () => {
+    translationMode = option.dataset.translationMode;
+    reset();
+  });
+}
+
+const scopeHelp = document.querySelectorAll('.scope-help');
+for (const hint of scopeHelp) {
+  const trigger = hint.querySelector('button');
+  trigger.addEventListener('click', () => {
+    if (trigger.dataset.translationMode && !matchMedia('(hover: none)').matches) return;
+    const open = hint.dataset.open === 'true';
+    hint.dataset.open = String(!open);
+    hint.dataset.dismissed = String(open);
+    if (trigger.hasAttribute('aria-expanded')) trigger.setAttribute('aria-expanded', String(!open));
+  });
+  hint.addEventListener('pointerleave', () => delete hint.dataset.dismissed);
+  hint.addEventListener('focusout', () => delete hint.dataset.dismissed);
+}
+function dismissScopeHelp(hint) {
+  hint.dataset.open = 'false';
+  hint.dataset.dismissed = 'true';
+  hint.querySelector('[aria-expanded]')?.setAttribute('aria-expanded', 'false');
+}
+document.addEventListener('click', event => {
+  for (const hint of scopeHelp) {
+    if (!hint.contains(event.target) && hint.dataset.open === 'true') dismissScopeHelp(hint);
+  }
+});
+document.addEventListener('keydown', event => {
+  if (event.key === 'Escape') {
+    for (const hint of scopeHelp) {
+      if (hint.matches(':hover, :has(button:focus-visible), [data-open="true"]') && hint.dataset.dismissed !== 'true') {
+        dismissScopeHelp(hint);
+        event.preventDefault();
+      }
+    }
+  }
 });
 $('provinceSelect').addEventListener('change', () => {
   if (section === 'regions') setSectionParam('province', $('provinceSelect').value);
@@ -471,7 +512,7 @@ $('topicSelect').addEventListener('change', () => {
 });
 $('resetButton').addEventListener('click', () => {
   clearSectionFilters();
-  $('translationFilter').value = 'all';
+  translationMode = 'all';
   sectionParams = new URLSearchParams();
   history.replaceState(null, '', sectionHref(section));
   reset();
