@@ -30,6 +30,14 @@ GitHub Actions 使用目标分支上的校验脚本，核对 PR 的变更范围�
 
 运行 `node scripts/translation-queue.mjs 40` 可列出下一批候选，优先法律、规章和一般规则。若已下载上游 JSON，可用 `node scripts/translation-queue.mjs 40 /path/to/latest.json`。脚本只输出候选标题。
 
+## 访问统计
+
+在 Umami Cloud 的免费 Hobby 方案中添加站点，域名填 `zvbo.github.io`。把 Tracking code 中的公开 Website ID 填入 `assets/analytics.js`。采集由本站脚本直接调用 Umami 的采集接口，只在生产项目路径启用。Website ID 用于收集事件，后台 API 密钥无需写入仓库。
+
+后台的 Events 页可查看 `section_click`、`filter_select`、`gazette_pdf_click` 和 `search_result`。官方公报 PDF 点击可按 `document_id`、`topic`、`section` 筛选。搜索事件只有栏目和是否有结果。后台保持私有。
+
+公开页读取 `data/traffic-summary.json` 的三个汇总数字。发布时在曼谷时区从后台取数，更新快照时间和汇总数字，通过 PR 发布。初始值为空。快照以页面标注的时间为准，后台实时数据与事件明细不随快照发布。
+
 ## 手动部署
 
 1. 由仓库所有者自行将仓库设为 Public（需要公开共享时）。

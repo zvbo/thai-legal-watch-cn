@@ -1,3 +1,4 @@
+import { track } from './analytics.js?v=1';
 import { SECTIONS, classify, featuredRegions, provinceKeys, provinceName, regionsFor, sectionHref } from './discovery.js?v=topic-scope';
 
 import { recentGazette, translationState } from './translation-policy.js';
@@ -113,6 +114,8 @@ let translationMode = 'all';
 let section = 'gazette';
 let sectionParams = new URLSearchParams();
 let loaded = false;
+let searchHasResults = null;
+let searchTimer;
 let provinceCounts = new Map();
 const translationOptions = document.querySelectorAll('[data-translation-mode]');
 const sectionFilterIds = ['queryInput', 'topicSelect', 'provinceSelect', 'fromDate', 'toDate'];
@@ -199,7 +202,9 @@ function renderItem(d) {
   meta.append(date);
   if (d.topic) meta.append(el('span', 'chip', topicName(d.topic)));
   for (const region of d.regions) {
-    meta.append(internalLink(provinceName(region), sectionHref('regions', { province: region }), 'chip'));
+    const anchor = internalLink(provinceName(region), sectionHref('regions', { province: region }), 'chip');
+    anchor.addEventListener('click', () => trackFilter('province', provinceChoice(region), 'regions'));
+    meta.append(anchor);
   }
   for (const group of d.groups[section] ?? []) {
     meta.append(el('span', 'chip lens-chip', SECTIONS[section].groups[group]));
@@ -219,7 +224,24 @@ function renderItem(d) {
 
   const links = el('div', 'links');
   const official = pdf(d.u);
-  links.append(link(official ? '官方公报 PDF ↗' : '官方公报主页 ↗', official ?? GAZETTE + '/'));
+  const officialLink = link(official ? '官方公报 PDF ↗' : '官方公报主页 ↗', official ?? GAZETTE + '/');
+  if (official) {
+    const recordClick = () => {
+      const groups = SECTIONS[section].groups;
+      const focus = sectionParams.get('focus');
+      track('gazette_pdf_click', {
+        section,
+        document_id: /^\d{4}-\d{2}-\d{2}-\d+$/.test(d.id) ? d.id : undefined,
+        topic: topicChoice(d.topic),
+        focus: groups && Object.hasOwn(groups, focus) ? focus : undefined,
+      });
+    };
+    officialLink.addEventListener('click', recordClick);
+    officialLink.addEventListener('auxclick', event => {
+      if (event.button === 1) recordClick();
+    });
+  }
+  links.append(officialLink);
   links.append(el('span', '', d.id));
   const source = '原始发布：泰国《皇家公报》 · 数据整理：Open Law Data Thailand';
   row.append(links, el('p', 'source-notes', d.zh ? source + ' · 中文译名：Thai Legal Watch CN' : source));
@@ -251,6 +273,7 @@ function render() {
     terms.every(term => (d.search ??= searchFields(d)).some(field => field.includes(term)))
   );
 
+  searchHasResults = invalidRange ? null : filtered.length > 0;
   const counts = { translated: 0, pending: 0, excluded: 0, review: 0 };
   for (const d of filtered) counts[d.status]++;
   $('countLabel').textContent = '匹配 ' + fmt(filtered.length) + ' / 共 ' + fmt(scoped.length) +
@@ -430,6 +453,7 @@ function renderLens(body, info) {
   nav.setAttribute('aria-label', '栏目细分');
   for (const [key, label] of [['', '全部'], ...Object.entries(info.groups)]) {
     const anchor = internalLink(label, sectionHref(section, key ? { focus: key } : {}));
+    anchor.addEventListener('click', () => trackFilter('focus', key));
     if (key === active) anchor.setAttribute('aria-current', 'page');
     nav.append(anchor);
   }
@@ -448,6 +472,7 @@ function renderRegions(body) {
   for (const name of featuredRegions) {
     const count = loaded ? ' ' + fmt(provinceCounts.get(name) ?? 0) : '';
     const anchor = internalLink(provinceName(name) + count, sectionHref('regions', { province: name }));
+    anchor.addEventListener('click', () => trackFilter('province', name));
     if (name === active) anchor.setAttribute('aria-current', 'page');
     nav.append(anchor);
   }
@@ -467,12 +492,46 @@ function renderDiscovery() {
   else renderLens(body, info);
 }
 
-for (const id of sectionFilterIds) {
-  $(id).addEventListener(id === 'queryInput' ? 'input' : 'change', reset);
+function trackFilter(filter, choice, targetSection = section) {
+  track('filter_select', { section: targetSection, filter, choice: choice || 'all' });
+}
+
+function topicChoice(value) {
+  return topicIndex.has(value) && /^[a-z0-9_-]{1,80}$/.test(value) ? value : undefined;
+}
+
+function provinceChoice(value) {
+  return value && !provinceKeys.includes(value) && value !== 'pattaya' ? 'other' : value;
+}
+
+for (const anchor of document.querySelectorAll('.section-nav a')) {
+  anchor.addEventListener('click', () => track('section_click', { section: anchor.hash.slice(1) }));
+}
+
+const queryInput = $('queryInput');
+function onQueryInput(event) {
+  reset();
+  clearTimeout(searchTimer);
+  if (event.isComposing || !queryInput.value.trim()) return;
+  searchTimer = setTimeout(() => {
+    if (loaded && queryInput.value.trim() && searchHasResults !== null) {
+      track('search_result', { section, has_results: searchHasResults });
+    }
+  }, 600);
+}
+queryInput.addEventListener('input', onQueryInput);
+queryInput.addEventListener('compositionend', onQueryInput);
+queryInput.addEventListener('compositionstart', () => clearTimeout(searchTimer));
+for (const id of ['topicSelect', 'provinceSelect', 'fromDate', 'toDate']) {
+  $(id).addEventListener('change', reset);
+}
+for (const [id, filter] of [['fromDate', 'start_date'], ['toDate', 'end_date']]) {
+  $(id).addEventListener('change', event => trackFilter(filter, event.target.value ? 'set' : 'cleared'));
 }
 for (const option of translationOptions) {
   option.addEventListener('click', () => {
     translationMode = option.dataset.translationMode;
+    trackFilter('translation', translationMode);
     reset();
   });
 }
@@ -511,12 +570,17 @@ document.addEventListener('keydown', event => {
   }
 });
 $('provinceSelect').addEventListener('change', () => {
-  if (section === 'regions') setSectionParam('province', $('provinceSelect').value);
+  const value = $('provinceSelect').value;
+  trackFilter('province', provinceChoice(value));
+  if (section === 'regions') setSectionParam('province', value);
 });
 $('topicSelect').addEventListener('change', () => {
-  if (section === 'gazette') setSectionParam('topic', $('topicSelect').value);
+  const value = $('topicSelect').value;
+  trackFilter('topic', topicChoice(value));
+  if (section === 'gazette') setSectionParam('topic', value);
 });
 $('resetButton').addEventListener('click', () => {
+  trackFilter('reset', 'all');
   clearSectionFilters();
   translationMode = 'all';
   sectionParams = new URLSearchParams();
