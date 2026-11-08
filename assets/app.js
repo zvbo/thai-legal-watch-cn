@@ -204,7 +204,8 @@ function renderItem(d) {
   for (const group of d.groups[section] ?? []) {
     meta.append(el('span', 'chip lens-chip', SECTIONS[section].groups[group]));
   }
-  meta.append(el('span', d.zh ? 'chip' : 'chip pending', translationLabels[d.status]));
+  const statusLabel = d.zh && d.machine ? '机器参考译名' : translationLabels[d.status];
+  meta.append(el('span', d.zh ? 'chip' : 'chip pending', statusLabel));
 
   const title = el('h3', '', d.zh || d.t);
   row.append(meta, title);
@@ -314,6 +315,7 @@ async function load() {
       return {
         id, t, d, dt, topic, u,
         ...translationState(doc, titles),
+        machine: titles[id]?.method === 'machine',
         regions: regionsFor(pr, t),
         topics: topicPath(topic),
         groups: classify(doc),
