@@ -1,19 +1,40 @@
-# Thai Legal Watch CN
+# Thai Legal Watch CN / 泰国法律观察中文版
 
-独立中文静态阅读器：直接读取 Thai Legal Watch 上游最新皇家公报 JSON，仅翻译文件标题；保留泰文标题、原站详情和官方 PDF 入口。
+[中文网站（Pages 部署后）](https://zvbo.github.io/thai-legal-watch-cn/) · [关于与授权](https://zvbo.github.io/thai-legal-watch-cn/about.html)
 
-## 自动更新
+本项目是**独立开发的静态中文阅读界面**。浏览器直接读取 Thai Legal Watch 上游最新《皇家公报》JSON 数据，仅翻译法律文件的标题，不提供正文译本，也不自建法规数据库或后端 API。每条记录保留泰文原标题、上游详情及可用的官方公报链接。
 
-ChatGPT 定时任务「泰国法律公报中文标题同步」每天晚上约 21:00（Asia/Bangkok）读取最新数据，将新增标题的中文参考译文提交到 `data/translations.json`。GitHub Actions 收到更新后负责发布 GitHub Pages，部署流程不需要 OpenAI API Key。
+> **非官方项目：** 与泰国政府、泰国《皇家公报》发布机关、Open Law Data Thailand 没有官方隶属或授权关系。中文标题仅供检索参考；正式法律引用以官方泰文文件为准。
 
-## 部署
+## 数据来源与许可
 
-1. 在 GitHub 仓库的 Settings → Pages 中选择 GitHub Actions 作为发布方式。
-2. 在 Actions 中查看 `Deploy Chinese Reader` 的运行结果；也可以手动执行。
-3. 网站默认路径：`https://zvbo.github.io/thai-legal-watch-cn/`（仅在 Pages 启用且部署成功后才存在）。
+| 内容 | 原始来源 / 许可 |
+| --- | --- |
+| 官方文件 | [泰国《皇家公报》](https://ratchakitcha.soc.go.th/) |
+| 开放数据 | [Open Law Data Thailand](https://www.openlawdatathailand.org/) / [Thai Legal Watch](https://thai-legal-watch.openlawdatathailand.org/) |
+| 数据集 | [soc-ratchakitcha](https://huggingface.co/datasets/open-law-data-thailand/soc-ratchakitcha) · [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) |
+| 上游源代码 | [open-law-data-thailand/thai-legal-watch](https://github.com/open-law-data-thailand/thai-legal-watch) · MIT |
+| 本站独立开发代码 | [MIT](./LICENSE) |
 
-注意：仓库当前是 Private；GitHub Free 使用 Pages 通常要求 Public 仓库，或者使用满足条件的付费方案。未经用户批准，不改变仓库可见性。
+**本项目对数据所作修改**：增补简体中文标题参考译名、中文分类、检索和筛选界面。不修改泰文标题，不声称译名得到上游或政府认可。完整说明见 [ATTRIBUTION.md](./ATTRIBUTION.md) 与站内 [about.html](./about.html)。
 
-中文标题为非官方参考译名。法律引用须以 [泰国皇家公报](https://ratchakitcha.soc.go.th/) 的泰文原文为准。
+## 更新机制
 
-来源：[Thai Legal Watch](https://thai-legal-watch.openlawdatathailand.org/) / [OpenLawData Thailand](https://github.com/open-law-data-thailand/thai-legal-watch)。
+ChatGPT 定时任务「泰国法律公报中文标题同步」计划每天晚上约 21:00（Asia/Bangkok）检查新增标题，对照文件 ID 与泰文原标题后增量写入 `data/translations.json`，避免覆盖人工修订。GitHub Actions 监听该文件提交并发布 GitHub Pages；无需在公开站点或 GitHub Actions 中储存付费翻译 API 密钥。
+
+首次执行及完整发布链路是否正常，仍须通过实际 GitHub 提交与 Actions 结果验证。若无可靠译文则展示泰文标题，不编造中文内容。
+
+## 手动部署
+
+1. 由仓库所有者自行将仓库设为 Public（需要公开共享时）。
+2. GitHub `Settings → Pages → Build and deployment → Source` 选择 `GitHub Actions`。
+3. 打开 `Actions → Deploy Chinese Reader` 确认部署成功。预计地址 `https://zvbo.github.io/thai-legal-watch-cn/`。
+
+Pages 可用性以账户计划和实际设置为准。
+
+## 技术与法律边界
+
+- 不需要法规数据库或运行时后端；静态网页读取上游 JSON。
+- PDF 链接仅在上游提供可核对官方标识或完整 URL 时显示，不凭 ID 推定。
+- 本项目代码 MIT 不改变上游数据适用的 CC BY 4.0 和署名要求。
+- OCR、主题分类和中文标题参考译名可能存在错误，不构成法律意见。
