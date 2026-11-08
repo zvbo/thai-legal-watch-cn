@@ -1,4 +1,4 @@
-import { SECTIONS, classify, featuredRegions, provinceKeys, provinceName, regionsFor, sectionHref } from './discovery.js?v=regions';
+import { SECTIONS, classify, featuredRegions, provinceKeys, provinceName, regionsFor, sectionHref } from './discovery.js?v=topic-scope';
 
 import { recentGazette, translationState } from './translation-policy.js';
 
@@ -433,7 +433,11 @@ function renderLens(body, info) {
     if (key === active) anchor.setAttribute('aria-current', 'page');
     nav.append(anchor);
   }
-  body.append(nav, el('p', 'discovery-note', '依据上游主题和泰文标题自动筛选，覆盖范围以近 90 天公报为准。'));
+  const scope = el('p', 'discovery-note');
+  for (const [key, label] of Object.entries(info.groups)) {
+    scope.append(el('strong', '', label), '，' + info.scope[key] + '。');
+  }
+  body.append(nav, el('p', 'discovery-note', '依据上游主题和泰文标题自动筛选，覆盖范围以近 90 天公报为准。'), scope);
 }
 
 function renderRegions(body) {
