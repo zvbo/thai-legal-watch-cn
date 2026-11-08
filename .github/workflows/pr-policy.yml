@@ -1,0 +1,85 @@
+name: Gazette PR policy
+on:
+  pull_request_target:
+    branches: [main]
+    types: [opened, reopened, synchronize, ready_for_review]
+
+permissions: {}
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      automatic: ${{ steps.policy.outputs.automatic }}
+    steps:
+      # Only trusted base code is checked out. PR files are read as data.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - id: policy
+        name: Validate pull request
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          TRANSLATION_BRANCH: ${{ startsWith(github.event.pull_request.head.ref, 'translations/') }}
+          AUTOMATIC: ${{ startsWith(github.event.pull_request.head.ref, 'translations/') && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.user.login == github.repository_owner }}
+        run: |
+          git fetch --no-tags -- origin "refs/pull/$PR_NUMBER/head"
+          test "$(git rev-parse FETCH_HEAD)" = "$PR_HEAD"
+          fork_point=$(git merge-base HEAD "$PR_HEAD")
+          path=data/translations.json
+          if [ "$TRANSLATION_BRANCH" = true ]; then
+            test "$AUTOMATIC" = true
+            test "$fork_point" = "$(git rev-parse HEAD)"
+            test "$(git diff --name-only --no-renames "$fork_point" "$PR_HEAD")" = "$path"
+          fi
+          if ! git diff --quiet "$fork_point" "$PR_HEAD" -- "$path"; then
+            test "$(git ls-tree --format='%(objectmode)' "$PR_HEAD" -- "$path")" = 100644
+            git show "$fork_point:$path" > "$RUNNER_TEMP/before.json"
+            git show "$PR_HEAD:$path" > "$RUNNER_TEMP/after.json"
+            mode=manual
+            if [ "$AUTOMATIC" = true ]; then mode=automatic; fi
+            node scripts/check-translation-pr.mjs "$RUNNER_TEMP/before.json" "$RUNNER_TEMP/after.json" "$mode"
+          fi
+          echo "automatic=$AUTOMATIC" >> "$GITHUB_OUTPUT"
+
+  report:
+    if: ${{ !cancelled() }}
+    needs: validate
+    runs-on: ubuntu-latest
+    permissions:
+      statuses: write
+    steps:
+      - name: Record result on the pull request head
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          STATE: ${{ needs.validate.result == 'success' && 'success' || 'failure' }}
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/statuses/$PR_HEAD" \
+            -f state="$STATE" -f context="Gazette PR policy" \
+            -f target_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" >/dev/null
+
+  publish-translation:
+    if: ${{ needs.validate.outputs.automatic == 'true' && !github.event.pull_request.draft }}
+    needs: [validate, report]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: write
+    steps:
+      - name: Merge validated translation and start Pages deployment
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          merged=$(gh api --method PUT "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/merge" \
+            -f sha="$PR_HEAD" -f merge_method=squash --jq .merged)
+          test "$merged" = true
+          gh workflow run deploy.yml --repo "$GITHUB_REPOSITORY" --ref main
