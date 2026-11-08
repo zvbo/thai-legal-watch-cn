@@ -99,15 +99,11 @@ footer a{color:#356c63}footer .footer-attribution{display:flex;justify-content:s
   gap: 14px;
   flex: 0 0 auto;
 }
-.wechat-slot {
-  display: grid;
-  place-items: center;
-  width: 104px;
-  height: 104px;
-  border: 1px dashed #a5b6ad;
-  border-radius: 8px;
-  background: #f8fbf9;
-  color: #526963;
+.wechat-qr img {
+  display: block;
+  width: 120px;
+  height: auto;
+  border-radius: 4px;
 }
 @media (max-width: 550px) {
   .footer-wechat { justify-content: space-between; margin-top: 20px; padding-top: 16px; border-top: 1px solid #d9e4dc; }
