@@ -20,9 +20,9 @@
 
 ## 更新机制
 
-ChatGPT 定时任务「泰国法律公报中文标题同步」计划每天晚上约 21:00（Asia/Bangkok）检查新增标题，对照文件 ID 与泰文原标题后增量写入 `data/translations.json`，避免覆盖人工修订。GitHub Actions 监听该文件提交并发布 GitHub Pages；无需在公开站点或 GitHub Actions 中储存付费翻译 API 密钥。
+ChatGPT 定时任务「泰国法律公报中文标题同步」每天约 21:00（Asia/Bangkok）检查新增或原标题变化的公报。每次从最新的 `main` 创建 `translations/` 开头的独立分支，只提交 `data/translations.json`，然后向 `main` 提交非草稿 PR。没有合格候选时结束本次任务。自动译名使用 `method: "machine"`。保留已有译文和人工审核标记。
 
-首次执行及完整发布链路是否正常，仍须通过实际 GitHub 提交与 Actions 结果验证。若无可靠译文则展示泰文标题，不编造中文内容。
+GitHub Actions 使用目标分支上的校验脚本，核对 PR 的变更范围、缓存格式和上游原标题。通过校验的定时翻译 PR 由 GitHub Actions 合并并启动 Pages 部署。代码和部署配置的 PR 由代码所有者审查。自动翻译任务只负责提交 PR。
 
 ### 翻译候选队列
 
