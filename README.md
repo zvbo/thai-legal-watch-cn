@@ -22,7 +22,7 @@
 
 ChatGPT 定时任务「泰国法律公报中文标题同步」每天约 21:00（Asia/Bangkok）检查新增或原标题变化的公报。每次从最新的 `main` 创建 `translations/` 开头的独立分支，只提交 `data/translations.json`，然后向 `main` 提交非草稿 PR。没有合格候选时结束本次任务。自动译名使用 `method: "machine"`。保留已有译文和人工审核标记。
 
-GitHub Actions 使用目标分支上的校验脚本，核对 PR 的变更范围、缓存格式和上游原标题。通过校验的定时翻译 PR 由 GitHub Actions 合并并启动 Pages 部署。代码和部署配置的 PR 由代码所有者审查。自动翻译任务只负责提交 PR。
+GitHub Actions 使用目标分支上的校验脚本，核对 PR 的变更范围、缓存格式和上游原标题。通过校验的定时翻译 PR 由 GitHub Actions 合并并启动 Pages 部署。代码和部署配置的 PR 需要有写权限的另一位协作者批准当前提交，并满足代码所有者审查规则。批准后重新运行该 PR 的「Gazette PR policy」检查。自动翻译任务只负责提交 PR。
 
 ### 翻译候选队列
 
