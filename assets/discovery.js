@@ -2,7 +2,7 @@ export const SECTIONS = {
   gazette: { title: '最新公报' },
   invest: {
     title: '投资泰国',
-    summary: '查看外资准入、投资促进及商业与投资争议及企业重整。',
+    summary: '查看外资准入、投资促进、商业与投资争议及企业重整。',
     groups: { foreign: '外资准入', capital: '投资促进', disputes: '商业争议与重整' },
   },
   living: {
@@ -11,9 +11,16 @@ export const SECTIONS = {
     groups: { safety: '公共安全', welfare: '社会保障与消费保护', labour: '劳动权益' },
   },
   regions: { title: '按地域' },
-  relations: { title: '看关系' },
-  statistics: { title: '看统计' },
 };
+
+export const featuredRegions = [
+  'กรุงเทพมหานคร',
+  'สมุทรปราการ',
+  'ชลบุรี',
+  'pattaya',
+  'ระยอง',
+  'เชียงใหม่',
+];
 
 const PROVINCES = {
   กรุงเทพมหานคร: '曼谷', นนทบุรี: '暖武里府', สมุทรปราการ: '北榄府', ชลบุรี: '春武里府',
@@ -41,7 +48,28 @@ const PROVINCES = {
 export const provinceKeys = Object.keys(PROVINCES);
 
 export function provinceName(thai) {
-  return PROVINCES[thai] ?? thai;
+  return thai === 'pattaya' ? '芭提雅' : PROVINCES[thai] ?? thai;
+}
+
+const PATTAYA_PLACE = /เมืองพัทยา|ศาลจังหวัดพัทยา|(?:สมาคม|เทศบาล|อ่าว|ชายหาด|ท่าเรือ)[^[]*พัทยา/;
+
+export function regionsFor(province, title) {
+  const regions = new Set(province ? [province] : []);
+  // Gazette titles may place personal or company names in a bracketed suffix.
+  const subject = (title ?? '').split('[')[0];
+  const compact = subject.replace(/\s+/g, '');
+  for (const key of featuredRegions) {
+    if (key === 'pattaya') {
+      if (PATTAYA_PLACE.test(compact) || /\bpattaya\b/i.test(subject)) {
+        regions.add(key);
+        regions.add('ชลบุรี');
+      }
+    } else {
+      const name = key === 'กรุงเทพมหานคร' ? key : 'จังหวัด' + key;
+      if (compact.includes(name)) regions.add(key);
+    }
+  }
+  return [...regions];
 }
 
 const FOREIGN_BUSINESS = /การประกอบธุรกิจของ(?:คนต่างด้าว|ชาวต่างชาติ)|ธุรกิจของคนต่างด้าว|การลงทุน(?:โดยคนต่างด้าว|ของคนต่างด้าว|จากต่างประเทศ|ของชาวต่างชาติ)|นักลงทุนต่างชาติ|การถือหุ้นของ(?:คนต่างด้าว|ชาวต่างชาติ)|นิติบุคคลต่างด้าว/;

@@ -1,4 +1,4 @@
-import { SECTIONS, classify, provinceKeys, provinceName, sectionHref } from './discovery.js';
+import { SECTIONS, classify, featuredRegions, provinceKeys, provinceName, regionsFor, sectionHref } from './discovery.js?v=regions';
 
 const ORIGIN = 'https://thai-legal-watch.openlawdatathailand.org';
 const BASE = ORIGIN + '/data/ratchakitcha';
@@ -87,7 +87,7 @@ const TOPIC_NAMES = {
 
 const $ = id => document.getElementById(id);
 const fmt = n => n.toLocaleString('zh-CN');
-const normalize = value => value.toLowerCase().replace(/\s+/g, '');
+const normalize = value => value.normalize('NFKC').toLowerCase().replace(/\s+/g, '');
 const bangkokTime = new Intl.DateTimeFormat('zh-CN', {
   timeZone: 'Asia/Bangkok',
   year: 'numeric',
@@ -104,12 +104,7 @@ let pageSize = INITIAL_PAGE_SIZE;
 let section = 'gazette';
 let sectionParams = new URLSearchParams();
 let loaded = false;
-let latestPublication = '';
 let provinceCounts = new Map();
-let panelVersion = 0;
-
-const aggregates = new Map();
-const listings = new Set(['gazette', 'invest', 'living', 'regions']);
 const filterIds = ['queryInput', 'topicSelect', 'provinceSelect', 'fromDate', 'toDate', 'translationFilter'];
 
 function el(tag, className, text) {
@@ -130,10 +125,6 @@ function link(text, href) {
 function translated(d, titles) {
   const entry = titles[d.id];
   return entry?.source === d.t && typeof entry.zh === 'string' ? entry.zh.trim() : '';
-}
-
-function original(d) {
-  return ORIGIN + '/#/ratchakitcha/doc/' + encodeURIComponent(d.id) + '?m=' + d.d.slice(0, 7);
 }
 
 function pdf(value) {
@@ -188,9 +179,11 @@ function buildTopics(items) {
   select.disabled = !topicIndex.size;
 }
 
-function searchText(d) {
-  const labels = d.topics.flatMap(slug => [topicName(slug), topicIndex.get(slug)?.thai, slug]);
-  return normalize([d.id, d.t, d.zh, d.dt, d.pr, provinceName(d.pr), ...labels].join(' '));
+function searchFields(d) {
+  const topics = d.topics.flatMap(slug => [topicName(slug), topicIndex.get(slug)?.thai, slug]);
+  const groups = Object.entries(d.groups).flatMap(([key, values]) => values.map(value => SECTIONS[key].groups[value]));
+  const regions = d.regions.flatMap(key => key === 'pattaya' ? ['芭提雅', '芭堤雅', 'พัทยา', key] : [provinceName(key), key]);
+  return [d.id, d.t, d.zh, d.dt, ...topics, ...groups, ...regions].filter(Boolean).map(normalize);
 }
 
 function renderItem(d) {
@@ -200,7 +193,9 @@ function renderItem(d) {
   date.dateTime = d.d;
   meta.append(date);
   if (d.topic) meta.append(el('span', 'chip', topicName(d.topic)));
-  if (d.pr) meta.append(internalLink(provinceName(d.pr), sectionHref('regions', { province: d.pr }), 'chip'));
+  for (const region of d.regions) {
+    meta.append(internalLink(provinceName(region), sectionHref('regions', { province: region }), 'chip'));
+  }
   for (const group of d.groups[section] ?? []) {
     meta.append(el('span', 'chip lens-chip', SECTIONS[section].groups[group]));
   }
@@ -217,9 +212,6 @@ function renderItem(d) {
   }
 
   const links = el('div', 'links');
-  const upstream = link('泰文详情 ↗', original(d));
-  upstream.title = 'Thai Legal Watch';
-  links.append(upstream);
   const official = pdf(d.u);
   links.append(link(official ? '官方公报 PDF ↗' : '官方公报主页 ↗', official ?? GAZETTE + '/'));
   links.append(el('span', '', d.id));
@@ -229,7 +221,7 @@ function renderItem(d) {
 }
 
 function render() {
-  const query = normalize($('queryInput').value);
+  const terms = $('queryInput').value.trim().split(/\s+/).filter(Boolean).map(normalize);
   const from = $('fromDate').value;
   const to = $('toDate').value;
   const topic = $('topicSelect').value;
@@ -242,19 +234,21 @@ function render() {
     const selected = Object.hasOwn(groups, focus);
     scoped = docs.filter(d => selected ? d.groups[section].includes(focus) : d.groups[section].length);
   } else if (section === 'regions') {
-    scoped = docs.filter(d => d.pr);
+    scoped = docs.filter(d => d.regions.length);
   }
   const invalidRange = from && to && from > to;
   const filtered = invalidRange ? [] : scoped.filter(d =>
     (!from || d.d >= from) &&
     (!to || d.d <= to) &&
     (!topic || d.topics.includes(topic)) &&
-    (!province || d.pr === province) &&
+    (!province || d.regions.includes(province)) &&
     (mode === 'all' || Boolean(d.zh) === (mode === 'translated')) &&
-    (!query || (d.search ??= searchText(d)).includes(query))
+    terms.every(term => (d.search ??= searchFields(d)).some(field => field.includes(term)))
   );
 
-  $('countLabel').textContent = '匹配 ' + fmt(filtered.length) + ' 条 / 共 ' + fmt(scoped.length) + ' 条';
+  const chinese = filtered.filter(d => d.zh).length;
+  $('countLabel').textContent = '匹配 ' + fmt(filtered.length) + ' / 共 ' + fmt(scoped.length) +
+    ' 条 · 已译 ' + fmt(chinese) + ' · 待译 ' + fmt(filtered.length - chinese);
   const list = document.createDocumentFragment();
   let lastDate;
   for (const d of filtered.slice(0, pageSize)) {
@@ -273,7 +267,7 @@ function render() {
 
 function reset() {
   pageSize = INITIAL_PAGE_SIZE;
-  if (loaded && listings.has(section)) render();
+  if (loaded) render();
 }
 
 async function fetchJSON(url) {
@@ -314,13 +308,13 @@ async function load() {
     docs = upstream
       .filter(d => d.d >= since && d.d <= to)
       .map(({ id, t, d, dt, pr, topic, u, action, tc }) => ({
-        id, t, d, dt, pr, topic, u,
+        id, t, d, dt, topic, u,
+        regions: regionsFor(pr, t),
         zh: translated({ id, t }, titles),
         topics: topicPath(topic),
         groups: classify({ t, topic, action, tc }),
       }));
 
-    latestPublication = to;
     loaded = true;
     buildProvinces();
     applySectionFilters();
@@ -337,14 +331,14 @@ async function load() {
       items.length ? '' : '主题筛选暂不可用',
     ].filter(Boolean).join(' · ');
     reset();
-    if (section === 'regions' || section === 'statistics') renderDiscovery();
+    if (section === 'regions') renderDiscovery();
   } catch (err) {
     $('statusLabel').textContent = docs.length ? '刷新失败，仍显示上次加载的记录' : '加载失败';
     if (!docs.length) $('list').replaceChildren();
     $('errorBox').hidden = false;
     $('errorBox').replaceChildren(
       document.createTextNode('无法读取上游公报（' + (err?.message ?? err) + '）。 '),
-      link('打开泰文原站 ↗', ORIGIN + '/#/ratchakitcha/latest'),
+      internalLink('查看数据来源', './about.html'),
     );
   } finally {
     refresh.disabled = false;
@@ -373,7 +367,6 @@ function readSection() {
     if (anchor.hash === sectionHref(section)) anchor.setAttribute('aria-current', 'page');
     else anchor.removeAttribute('aria-current');
   }
-  $('gazetteLayout').hidden = !listings.has(section);
   $('resultsTitle').textContent = section === 'gazette' ? '最新公报文件' : SECTIONS[section].title + ' · 公报文件';
   reset();
   renderDiscovery();
@@ -381,7 +374,7 @@ function readSection() {
 
 function applySectionFilters() {
   const regionFilter = $('provinceSelect');
-  regionFilter.options[0].text = section === 'regions' ? '全部已标注地域' : '全部地域';
+  regionFilter.options[0].text = section === 'regions' ? '全部已识别地域' : '全部地域';
   if (section === 'gazette') {
     const topic = sectionParams.get('topic');
     $('topicSelect').value = topicIndex.has(topic) ? topic : '';
@@ -401,15 +394,24 @@ function setSectionParam(key, value) {
 
 function buildProvinces() {
   provinceCounts = new Map();
-  for (const { pr } of docs) {
-    if (pr) provinceCounts.set(pr, (provinceCounts.get(pr) ?? 0) + 1);
+  for (const d of docs) {
+    for (const key of d.regions) provinceCounts.set(key, (provinceCounts.get(key) ?? 0) + 1);
   }
-  const names = [...new Set([...provinceKeys, ...provinceCounts.keys()])]
+  const other = [...new Set([...provinceKeys, ...provinceCounts.keys()])]
+    .filter(name => !featuredRegions.includes(name))
     .sort((a, b) => provinceName(a).localeCompare(provinceName(b), 'zh-CN'));
   const select = $('provinceSelect');
   const selected = select.value;
-  select.replaceChildren(new Option(section === 'regions' ? '全部已标注地域' : '全部地域', ''));
-  for (const name of names) select.add(new Option(provinceName(name) + ' · ' + name, name));
+  select.replaceChildren(new Option('全部地域', ''));
+  for (const [label, names] of [['常用地区', featuredRegions], ['其他府', other]]) {
+    const group = el('optgroup');
+    group.label = label;
+    for (const name of names) {
+      const thai = name === 'pattaya' ? 'พัทยา' : name;
+      group.append(new Option(provinceName(name) + ' · ' + thai, name));
+    }
+    select.append(group);
+  }
   select.value = selected;
 }
 
@@ -428,129 +430,21 @@ function renderLens(body, info) {
 }
 
 function renderRegions(body) {
-  body.append(el('p', 'discovery-intro', '按上游府级标签查看公报。可在筛选区选择曼谷或其他 76 府。'));
-  if (!loaded) {
-    body.append(el('p', 'discovery-note', '地域数据随公报加载。'));
-    return;
-  }
-
-  const popular = [...provinceCounts].sort((a, b) => b[1] - a[1]).slice(0, 8);
+  body.append(el('p', 'discovery-intro', '先选常用城市或府。其他地区可在筛选栏查找。'));
   const active = $('provinceSelect').value;
   const nav = el('nav', 'discovery-options');
-  nav.setAttribute('aria-label', '近 90 天有较多公报的地区');
-  for (const [name, count] of popular) {
-    const anchor = internalLink(provinceName(name) + ' ' + fmt(count), sectionHref('regions', { province: name }));
+  nav.setAttribute('aria-label', '常用地区');
+  for (const name of featuredRegions) {
+    const count = loaded ? ' ' + fmt(provinceCounts.get(name) ?? 0) : '';
+    const anchor = internalLink(provinceName(name) + count, sectionHref('regions', { province: name }));
     if (name === active) anchor.setAttribute('aria-current', 'page');
     nav.append(anchor);
   }
-
-  const tagged = [...provinceCounts.values()].reduce((sum, count) => sum + count, 0);
-  const note = el('p', 'discovery-note',
-    '近 90 天 ' + fmt(tagged) + ' 条公报带有府级标签。数字反映标签覆盖，未标注公报也可能涉及地方。');
-  const href = active ? 'explore?' + new URLSearchParams({ scope: 'all', province: active }) : 'provinces';
-  body.append(nav, note, link(active ? '查看' + provinceName(active) + '的泰文历史公报 ↗' : '查看泰文原站地域索引 ↗',
-    ORIGIN + '/#/ratchakitcha/' + href));
+  body.append(nav, el('p', 'discovery-note',
+    '按上游地域标签及标题中的明确地名筛选。芭提雅单列，其记录也计入春武里府。'));
 }
 
-function getAggregate(file) {
-  if (!aggregates.has(file)) {
-    aggregates.set(file, fetchJSON(BASE + '/agg/' + file + '.json').catch(err => {
-      aggregates.delete(file);
-      throw err;
-    }));
-  }
-  return aggregates.get(file);
-}
-
-function rankedList(heading, items) {
-  const card = el('section', 'insight-card');
-  card.append(el('h3', '', heading));
-  if (!items.length) {
-    card.append(el('p', 'discovery-note', '上游未列出这一主题的相关条目。'));
-    return card;
-  }
-  const list = el('ul', 'rank-list');
-  for (const [label, count] of items) {
-    const row = el('li');
-    row.append(label, el('strong', '', fmt(count)));
-    list.append(row);
-  }
-  card.append(list);
-  return card;
-}
-
-function renderRelations(body, graph) {
-  const subjects = new Map(graph.topics.map(item => [item.slug, item.thai]));
-  const subjectName = slug => TOPIC_NAMES[slug] ?? subjects.get(slug) ?? slug;
-  const requested = sectionParams.get('topic');
-  const active = subjects.has(requested) ? requested : subjects.has('investment') ? 'investment' : subjects.keys().next().value;
-  const label = el('label', 'discovery-select', '选择法律主题');
-  const select = el('select');
-  for (const slug of subjects.keys()) select.add(new Option(subjectName(slug), slug));
-  select.value = active;
-  select.addEventListener('change', () => {
-    setSectionParam('topic', select.value);
-    showRelationships();
-  });
-  label.append(select);
-  const grid = el('div', 'insight-grid');
-  const actions = el('div', 'discovery-options');
-  const agencies = new Map(graph.agencies.map(item => [item.id, item.name]));
-
-  function showRelationships() {
-    const topic = select.value;
-    const connected = graph.topic_topic
-      .filter(edge => edge.a === topic || edge.b === topic)
-      .map(edge => [edge.a === topic ? edge.b : edge.a, edge.n]);
-    const organisations = graph.topic_agency
-      .filter(edge => edge.t === topic && agencies.has(edge.a))
-      .map(edge => [edge.a, edge.n]);
-    const rank = rows => rows.sort((a, b) => b[1] - a[1]).slice(0, 8);
-    grid.replaceChildren(
-      rankedList('共同标注的主题', rank(connected).map(([slug, count]) => [
-        internalLink(subjectName(slug), sectionHref('relations', { topic: slug })), count,
-      ])),
-      rankedList('相关机构（泰文）', rank(organisations).map(([id, count]) => [
-        link(agencies.get(id), ORIGIN + '/#/ratchakitcha/explore?' + new URLSearchParams({ scope: 'all', topic, agency: id })), count,
-      ])),
-    );
-    actions.replaceChildren(
-      internalLink('查看该主题近 90 天公报', sectionHref('gazette', { topic })),
-      link('打开泰文原站关系图 ↗', ORIGIN + '/#/ratchakitcha/graph'),
-    );
-  }
-
-  body.append(el('p', 'discovery-intro', '从法律主题出发，查看上游全档案中与它共同出现的主题和相关机构。'),
-    label, grid, actions, el('p', 'discovery-note', '数字为上游统计的关联公报数；父子主题可同时出现。机构名称保留泰文。'));
-  showRelationships();
-}
-
-function renderStatistics(body, years) {
-  const months = Object.entries(years.by_month).sort(([a], [b]) => a.localeCompare(b)).slice(-12);
-  if (!months.length) throw new Error('没有月度统计');
-  const max = Math.max(1, ...months.map(([, count]) => count));
-  const list = el('ul', 'month-bars');
-  for (const [month, count] of months) {
-    const row = el('li');
-    const track = el('span', 'month-track');
-    track.setAttribute('aria-hidden', 'true');
-    const bar = el('span', 'month-bar');
-    bar.style.width = (100 * count / max) + '%';
-    track.append(bar);
-    row.append(el('span', '', month), track, el('strong', '', fmt(count)));
-    list.append(row);
-  }
-  const card = el('section', 'insight-card');
-  card.append(el('h3', '', '最近 12 个有数据的月份'), list);
-  const latest = latestPublication.startsWith(months.at(-1)[0])
-    ? '末月截至 ' + latestPublication + '。' : '末月为上游当前提供的最新月份。';
-  body.append(el('p', 'discovery-intro', '使用上游全档案的月度公报数，口径独立于近 90 天检索和两个专题。'),
-    card, el('p', 'discovery-note', latest + '数字表示公报文件数量。'),
-    link('查看泰文原站完整统计 ↗', ORIGIN + '/#/ratchakitcha/dashboard'));
-}
-
-async function renderDiscovery() {
-  const version = ++panelVersion;
+function renderDiscovery() {
   $('discoveryPanel').hidden = section === 'gazette';
   if (section === 'gazette') return;
 
@@ -558,30 +452,8 @@ async function renderDiscovery() {
   const body = $('discoveryBody');
   $('discoveryTitle').textContent = info.title;
   body.replaceChildren();
-  if (info.groups) {
-    renderLens(body, info);
-  } else if (section === 'regions') {
-    renderRegions(body);
-  } else {
-    const relations = section === 'relations';
-    const file = relations ? 'graph' : 'years';
-    const status = el('p', 'discovery-note', '正在读取上游' + info.title.slice(1) + '数据…');
-    status.setAttribute('role', 'status');
-    body.append(status);
-    try {
-      const data = await getAggregate(file);
-      if (version !== panelVersion) return;
-      body.replaceChildren();
-      if (relations) renderRelations(body, data);
-      else renderStatistics(body, data);
-    } catch {
-      if (version !== panelVersion) return;
-      aggregates.delete(file);
-      const retry = el('button', 'ghost', '重新加载');
-      retry.addEventListener('click', renderDiscovery);
-      body.replaceChildren(el('p', 'discovery-note', '上游数据暂不可用。'), retry);
-    }
-  }
+  if (section === 'regions') renderRegions(body);
+  else renderLens(body, info);
 }
 
 for (const id of filterIds) {
