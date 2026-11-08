@@ -1,9 +1,10 @@
 import { SECTIONS, classify, featuredRegions, provinceKeys, provinceName, regionsFor, sectionHref } from './discovery.js?v=regions';
 
+import { recentGazette, translationState } from './translation-policy.js';
+
 const ORIGIN = 'https://thai-legal-watch.openlawdatathailand.org';
 const BASE = ORIGIN + '/data/ratchakitcha';
 const GAZETTE = 'https://ratchakitcha.soc.go.th';
-const WINDOW_DAYS = 90;
 const INITIAL_PAGE_SIZE = 50;
 
 const TOPIC_NAMES = {
@@ -98,6 +99,13 @@ const bangkokTime = new Intl.DateTimeFormat('zh-CN', {
   hourCycle: 'h23',
 });
 
+const translationLabels = {
+  translated: '中文参考译名',
+  pending: '待译',
+  excluded: '不纳入翻译',
+  review: '待人工审核',
+};
+
 let docs = [];
 let topicIndex = new Map();
 let pageSize = INITIAL_PAGE_SIZE;
@@ -120,11 +128,6 @@ function link(text, href) {
   node.target = '_blank';
   node.rel = 'noopener noreferrer';
   return node;
-}
-
-function translated(d, titles) {
-  const entry = titles[d.id];
-  return entry?.source === d.t && typeof entry.zh === 'string' ? entry.zh.trim() : '';
 }
 
 function pdf(value) {
@@ -199,7 +202,7 @@ function renderItem(d) {
   for (const group of d.groups[section] ?? []) {
     meta.append(el('span', 'chip lens-chip', SECTIONS[section].groups[group]));
   }
-  meta.append(el('span', d.zh ? 'chip' : 'chip pending', d.zh ? '中文参考译名' : '尚无中文译名'));
+  meta.append(el('span', d.zh ? 'chip' : 'chip pending', translationLabels[d.status]));
 
   const title = el('h3', '', d.zh || d.t);
   row.append(meta, title);
@@ -242,13 +245,15 @@ function render() {
     (!to || d.d <= to) &&
     (!topic || d.topics.includes(topic)) &&
     (!province || d.regions.includes(province)) &&
-    (mode === 'all' || Boolean(d.zh) === (mode === 'translated')) &&
+    (mode === 'all' || mode === d.status) &&
     terms.every(term => (d.search ??= searchFields(d)).some(field => field.includes(term)))
   );
 
-  const chinese = filtered.filter(d => d.zh).length;
+  const counts = { translated: 0, pending: 0, excluded: 0, review: 0 };
+  for (const d of filtered) counts[d.status]++;
   $('countLabel').textContent = '匹配 ' + fmt(filtered.length) + ' / 共 ' + fmt(scoped.length) +
-    ' 条 · 已译 ' + fmt(chinese) + ' · 待译 ' + fmt(filtered.length - chinese);
+    ' 条 · 已译 ' + fmt(counts.translated) + ' · 待译 ' + fmt(counts.pending) +
+    ' · 不纳入翻译 ' + fmt(counts.excluded) + ' · 待审核 ' + fmt(counts.review);
   const list = document.createDocumentFragment();
   let lastDate;
   for (const d of filtered.slice(0, pageSize)) {
@@ -289,11 +294,7 @@ async function load() {
       fetchJSON(BASE + '/agg/meta.json'),
     ]);
     if (source.status === 'rejected') throw source.reason;
-    const { docs: upstream, to } = source.value ?? {};
-    const start = new Date(to + 'T00:00:00Z');
-    if (!Array.isArray(upstream) || !/^\d{4}-\d{2}-\d{2}$/.test(to) || !Number.isFinite(start.getTime())) {
-      throw new Error('上游数据格式有变');
-    }
+    const { docs: upstream, from: since, to } = recentGazette(source.value);
 
     const cacheData = cache.status === 'fulfilled' ? cache.value : null;
     const validCache = cacheData?.schema === 1 && cacheData.titles &&
@@ -302,18 +303,16 @@ async function load() {
     const items = tax.status === 'fulfilled' ? getTopics(tax.value) : [];
     buildTopics(items);
 
-    // Use publication dates. The upstream nominal window can contain older records.
-    start.setUTCDate(start.getUTCDate() - WINDOW_DAYS + 1);
-    const since = start.toISOString().slice(0, 10);
-    docs = upstream
-      .filter(d => d.d >= since && d.d <= to)
-      .map(({ id, t, d, dt, pr, topic, u, action, tc }) => ({
+    docs = upstream.map(doc => {
+      const { id, t, d, dt, pr, topic, u } = doc;
+      return {
         id, t, d, dt, topic, u,
+        ...translationState(doc, titles),
         regions: regionsFor(pr, t),
-        zh: translated({ id, t }, titles),
         topics: topicPath(topic),
-        groups: classify({ t, topic, action, tc }),
-      }));
+        groups: classify(doc),
+      };
+    });
 
     loaded = true;
     buildProvinces();
