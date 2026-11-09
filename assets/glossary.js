@@ -44,12 +44,14 @@ const FORBIDDEN = [
 
 const TITLE_TYPES = [['กฎกระทรวง', /部令/, '部令']];
 
-const subjectOf = source => source.split('[')[0].replace(/\s+/g, '').normalize('NFC');
+// Some titles type sara am (ำ) as nikhahit + sara aa, which NFC does not join.
+export const thaiText = text => text.normalize('NFC').replace(/\u0E4D\u0E32/g, '\u0E33');
+const subjectOf = source => thaiText(source.split('[')[0].replace(/\s+/g, ''));
 
 // provinces: { thaiName: '标准中文名' } as used by the region filter.
 export function glossaryProblems(source, zh, provinces = {}) {
   const subject = subjectOf(source);
-  const whole = source.replace(/\s+/g, '').normalize('NFC');
+  const whole = thaiText(source.replace(/\s+/g, ''));
   const problems = [];
   const covered = [];
   for (const [th, required, standard] of TERMS) {

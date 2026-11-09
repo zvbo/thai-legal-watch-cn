@@ -81,7 +81,8 @@ export function regionsFor(province, title) {
   const regions = new Set(province ? [province] : []);
   // Gazette titles may place personal or company names in a bracketed suffix.
   const subject = (title ?? '').split('[')[0];
-  const compact = subject.replace(/\s+/g, '');
+  // Some titles type sara am (ำ) as nikhahit + sara aa.
+  const compact = subject.replace(/\s+/g, '').normalize('NFC').replace(/\u0E4D\u0E32/g, '\u0E33');
   for (const key of featuredRegions) {
     if (key === 'pattaya') {
       if (PATTAYA_PLACE.test(compact) || /\bpattaya\b/i.test(subject)) {
