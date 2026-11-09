@@ -1,7 +1,8 @@
 import { track } from './analytics.js?v=1';
-import { SECTIONS, classify, featuredRegions, provinceKeys, provinceName, regionsFor, sectionHref } from './discovery.js?v=topic-scope';
+import { SECTIONS, classify, featuredRegions, provinceKeys, provinceName, regionsFor, sectionHref } from './discovery.js?v=immigration';
 
 import { recentGazette, translationState } from './translation-policy.js';
+import { searchAlternatives } from './glossary.js?v=1';
 
 const ORIGIN = 'https://thai-legal-watch.openlawdatathailand.org';
 const BASE = ORIGIN + '/data/ratchakitcha';
@@ -249,7 +250,7 @@ function renderItem(d) {
 }
 
 function render() {
-  const terms = $('queryInput').value.trim().split(/\s+/).filter(Boolean).map(normalize);
+  const terms = $('queryInput').value.trim().split(/\s+/).filter(Boolean).map(searchAlternatives);
   const from = $('fromDate').value;
   const to = $('toDate').value;
   const topic = $('topicSelect').value;
@@ -270,7 +271,7 @@ function render() {
     (!topic || d.topics.includes(topic)) &&
     (!province || d.regions.includes(province)) &&
     (translationMode === 'all' || translationMode === d.status) &&
-    terms.every(term => (d.search ??= searchFields(d)).some(field => field.includes(term)))
+    terms.every(alternatives => (d.search ??= searchFields(d)).some(field => alternatives.some(term => field.includes(term))))
   );
 
   searchHasResults = invalidRange ? null : filtered.length > 0;
