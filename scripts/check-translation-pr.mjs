@@ -1,6 +1,10 @@
 import { readFile } from 'node:fs/promises';
 import { isDeepStrictEqual } from 'node:util';
 import { recentGazette, translationScope } from '../assets/translation-policy.js';
+import { provinceKeys, provinceName } from '../assets/discovery.js';
+import { glossaryProblems } from '../assets/glossary.js';
+
+const PROVINCES = Object.fromEntries(provinceKeys.map(key => [key, provinceName(key)]));
 
 const [beforePath, afterPath, mode, sourcePath] = process.argv.slice(2);
 const automatic = mode === 'automatic';
@@ -31,6 +35,13 @@ if (automatic && Object.keys(before.titles).some(id => !Object.hasOwn(after.titl
 }
 if (automatic && changes.length === 0) {
   throw new Error('No new or changed source titles');
+}
+
+const glossary = changes.flatMap(([id, entry]) =>
+  glossaryProblems(entry.source, entry.zh, PROVINCES).map(problem => id + ': ' + problem));
+if (glossary.length) {
+  for (const line of glossary) console.error('::error::' + line);
+  throw new Error('Translations do not follow the glossary (assets/glossary.js)');
 }
 
 if (changes.length) {

@@ -28,7 +28,13 @@ GitHub Actions 使用目标分支上的校验脚本，核对 PR 的变更范围�
 
 维护和同步时应按 [翻译范围规则](./assets/translation-policy.js) 选取最近 90 天的候选标题。人事任免及授衔授勋、个案裁判、破产和清算个案公告排除在自动翻译范围之外。宪法法院裁判及结果公告进入人工审核，审核人可在对应的缓存条目中增填 `"reviewed": true`。中文译名仍须与文件 ID 和泰文原题一致。历史缓存保留，前台按上述范围决定是否展示。
 
-运行 `node scripts/translation-queue.mjs 40` 可列出下一批候选，优先法律、规章和一般规则。若已下载上游 JSON，可用 `node scripts/translation-queue.mjs 40 /path/to/latest.json`。脚本只输出候选标题。
+运行 `node scripts/translation-queue.mjs 40` 可列出下一批候选，优先法律、规章和一般规则。若已下载上游 JSON，可用 `node scripts/translation-queue.mjs 40 /path/to/latest.json`。脚本只输出候选标题；标题含术语表中的机构、术语或府名时，`terms` 字段列出该条必须使用的中文写法。
+
+### 术语表
+
+[`assets/glossary.js`](./assets/glossary.js) 规定常见泰文术语的中文写法，例如 ตรวจลงตรา 译作“签证”、สำนักงานตรวจคนเข้าเมือง 译作“移民局”、กรมสรรพสามิต 译作“消费税厅”。府名一律使用按地域筛选中的标准名，不写“省”，曼谷不加“府”。PR 校验对每条新增或修改的译名执行这些规则，不符合时列出条目和原因并拒绝合并。纠正旧译名时提交只改 `data/translations.json` 的人工 PR，只能修改仍在最近 90 天范围内的条目。
+
+搜索使用同一文件中的同义词组。读者输入“签证”“移民局”“社保”“证监会”等中文词时，也会匹配含对应泰文的原题。
 
 ## 访问统计
 

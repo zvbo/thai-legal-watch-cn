@@ -1,5 +1,9 @@
 import { readFile } from 'node:fs/promises';
 import { recentGazette, translationState } from '../assets/translation-policy.js';
+import { provinceKeys, provinceName } from '../assets/discovery.js';
+import { glossaryProblems } from '../assets/glossary.js';
+
+const PROVINCES = Object.fromEntries(provinceKeys.map(key => [key, provinceName(key)]));
 
 const NORMATIVE_TYPES = new Set([
   'พระราชบัญญัติ', 'พระราชกฤษฎีกา', 'กฎกระทรวง', 'กฎ', 'กฎ ก.',
@@ -22,7 +26,11 @@ const queue = docs
   .filter(doc => translationState(doc, cache.titles).status === 'pending')
   .sort((a, b) => priority(b) - priority(a) || b.d.localeCompare(a.d))
   .slice(0, limit)
-  .map(({ id, t, d }) => ({ id, t, d }));
+  .map(({ id, t, d }) => {
+    // Checking an empty translation lists every rendering the title will be held to.
+    const terms = glossaryProblems(t, '', PROVINCES).filter(problem => !problem.startsWith('泰文原题没有'));
+    return terms.length ? { id, t, d, terms } : { id, t, d };
+  });
 
 console.log(JSON.stringify(queue, null, 2));
 

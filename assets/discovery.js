@@ -23,9 +23,12 @@ export const SECTIONS = {
   },
   living: {
     title: '生活在泰国',
-    summary: '查看公共安全、社会保障、消费者保护和劳动权益相关公报。',
-    groups: { safety: '公共安全', welfare: '社会保障与消费保护', labour: '劳动权益' },
+    summary: '查看签证移民、公共安全、社会保障、消费者保护和劳动权益相关公报。',
+    groups: {
+      immigration: '签证与移民', safety: '公共安全', welfare: '社会保障与消费保护', labour: '劳动权益',
+    },
     scope: {
+      immigration: '如签证、免签、入境停留、移民局命令和外国人工作许可',
       safety: '如道路安全、灾害和紧急状态',
       welfare: '包括社保、医疗保障、残疾人福利和消费者保护',
       labour: '如职业安全和雇员福利基金',
@@ -78,7 +81,8 @@ export function regionsFor(province, title) {
   const regions = new Set(province ? [province] : []);
   // Gazette titles may place personal or company names in a bracketed suffix.
   const subject = (title ?? '').split('[')[0];
-  const compact = subject.replace(/\s+/g, '');
+  // Some titles type sara am (ำ) as nikhahit + sara aa.
+  const compact = subject.replace(/\s+/g, '').normalize('NFC').replace(/\u0E4D\u0E32/g, '\u0E33');
   for (const key of featuredRegions) {
     if (key === 'pattaya') {
       if (PATTAYA_PLACE.test(compact) || /\bpattaya\b/i.test(subject)) {
@@ -104,6 +108,7 @@ const REVENUE_CODE_TRANSFER_PRICING = /มาตรา(?:71|๗๑)(?:ทวิ|
 const INTELLECTUAL_PROPERTY = /ทรัพย์สินทางปัญญา|สิทธิบัตร(?!ทอง)|เครื่องหมายการค้า|ลิขสิทธิ์|สิ่งบ่งชี้ทางภูมิศาสตร์|ความลับทางการค้า|แบบผังภูมิของวงจรรวม/;
 const PUBLIC_SAFETY = /ป้องกันและบรรเทาสาธารณภัย|บรรเทาสาธารณภัย|ความปลอดภัย(?:สาธารณะ|ทางถนน|ในการจราจร|ของประชาชน)|อุบัติเหตุบนถนน|ความปลอดภัย.*(?:อาคาร|การขนส่ง)|(?:อาคาร|การขนส่ง).*ความปลอดภัย/;
 const WELFARE = /ประกันสังคม|สวัสดิการสังคม|หลักประกันสุขภาพ|คุ้มครองผู้บริโภค|กองทุนเงินทดแทน|สิทธิบัตรทอง/;
+const IMMIGRATION = /ตรวจลงตรา|ตรวจคนเข้าเมือง|การเข้าเมือง|คนต่างด้าวอยู่ในราชอาณาจักร|ใบอนุญาตทำงาน|การทำงานของคนต่างด้าว|หนังสือเดินทาง/;
 const WORKER_PROTECTION = /คุ้มครองแรงงาน|ค่าจ้างขั้นต่ำ|อัตราค่าจ้าง|กองทุนสงเคราะห์ลูกจ้าง|ความปลอดภัย(?:ในการทำงาน|อาชีวอนามัย)|อาชีวอนามัย|สภาพการจ้าง|แรงงานสัมพันธ์|สิทธิของลูกจ้าง|การทำงานของคนต่างด้าว/;
 
 export function classify(doc) {
@@ -135,6 +140,7 @@ export function classify(doc) {
   if (transferPricing) invest.push('transfer-pricing');
   if (INTELLECTUAL_PROPERTY.test(compactSubject)) invest.push('intellectual-property');
 
+  if (IMMIGRATION.test(title)) living.push('immigration');
   if (topic === 'emergency' || (topic === 'disaster' && tc) || PUBLIC_SAFETY.test(title)) {
     living.push('safety');
   }
